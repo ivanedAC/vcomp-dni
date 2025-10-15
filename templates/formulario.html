@@ -1,0 +1,87 @@
+{% block styles %}
+    <link rel="stylesheet" href="css/formulario.css">
+{% endblock styles %}
+{% block container %}
+     <div class="form-section" id="formSection">
+            <div class="form-header">
+                <h2>☠ DATOS DEL FALLECIDO</h2>
+            </div>
+
+            <form id="formularioFallecido">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Primer Apellido</label>
+                        <input type="text" id="primerApellido" name="primerApellido" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Segundo Apellido</label>
+                        <input type="text" id="segundoApellido" name="segundoApellido" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Prenombres</label>
+                        <input type="text" id="prenombres" name="prenombres" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Fecha de Nacimiento</label>
+                        <input type="date" id="fechaNacimiento" name="fechaNacimiento" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Edad (Calculada)</label>
+                        <input type="text" id="edad" name="edad" disabled>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tipo de Documento</label>
+                        <select id="tipoDocumento" name="tipoDocumento" required>
+                            <option value="">Seleccione...</option>
+                            <option value="DNI">D.N.I.</option>
+                            <option value="CARNET_EXTRANJERIA">Carnet de Extranjería</option>
+                            <option value="PASAPORTE">Pasaporte</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Número de Documento</label>
+                        <input type="text" id="numeroDocumento" name="numeroDocumento" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Sexo</label>
+                        <select id="sexo" name="sexo" required>
+                            <option value="">Seleccione...</option>
+                            <option value="MASCULINO">Masculino</option>
+                            <option value="FEMENINO">Femenino</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Estado Civil</label>
+                        <select id="estadoCivil" name="estadoCivil" required>
+                            <option value="">Seleccione...</option>
+                            <option value="SOLTERO">Soltero(a)</option>
+                            <option value="CASADO">Casado(a)</option>
+                            <option value="VIUDO">Viudo(a)</option>
+                            <option value="DIVORCIADO">Divorciado(a)</option>
+                            <option value="CONVIVIENTE">Conviviente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fecha y Hora de Ingreso</label>
+                        <input type="datetime-local" id="fechaHoraIngreso" name="fechaHoraIngreso" disabled>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-edit" id="btnEdit">✎ EDITAR</button>
+                    <button type="submit" class="btn btn-save" id="btnSave">✓ GUARDAR</button>
+                </div>
+            </form>
+        </div>
+{% endblock container %}
+

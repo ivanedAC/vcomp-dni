@@ -110,6 +110,7 @@ input[type="submit"]:hover {
 .form-group input.auto-filled {
     border-color: #00ff00;
     background: rgba(0, 255, 0, 0.05);
+    color:black;
 }
 
 /* Botones del formulario */
