@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/camera.css">
     <link rel="stylesheet" href="css/formulario.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
@@ -35,7 +36,8 @@
                 <button class="btn-close-camera" id="btnCloseCamera">✕ CERRAR</button>
                 <div class="camera-frame" id="cameraFrame">
                     <video id="cameraVideo" autoplay playsinline></video>
-                    <canvas id="cameraCanvas" style="display: none;"></canvas>
+                    <canvas id="detectionCanvas"></canvas>
+                    <canvas id="captureCanvas" style="display: none;"></canvas>
                     <div class="camera-guide"></div>
                     <div class="camera-status" id="cameraStatus">
                         ⬤ BUSCANDO DOCUMENTO
@@ -47,7 +49,10 @@
         <!-- Overlay de procesamiento -->
         <div class="processing-overlay" id="processingOverlay">
             <div class="spinner"></div>
-            <p class="processing-text">Extrayendo datos...</p>
+            <p class="processing-text" id="processingText">Extrayendo datos...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
         </div>
 
         <!-- Sección del formulario -->
@@ -152,20 +157,26 @@
     <script>
         // Variables globales
         let stream = null;
-        let isEditing = false;
+        let detectionInterval = null;
+        let isDetecting = false;
+        let detectionStableFrames = 0;
+        const FRAMES_TO_CONFIRM = 10; // Frames consecutivos para confirmar detección
 
         // Elementos del DOM
         const btnActivateCamera = document.getElementById('btnActivateCamera');
         const btnCloseCamera = document.getElementById('btnCloseCamera');
         const btnEdit = document.getElementById('btnEdit');
-        const btnSave = document.getElementById('btnSave');
         const cameraModal = document.getElementById('cameraModal');
         const cameraSection = document.getElementById('cameraSection');
         const formSection = document.getElementById('formSection');
         const cameraVideo = document.getElementById('cameraVideo');
+        const detectionCanvas = document.getElementById('detectionCanvas');
+        const captureCanvas = document.getElementById('captureCanvas');
         const cameraFrame = document.getElementById('cameraFrame');
         const cameraStatus = document.getElementById('cameraStatus');
         const processingOverlay = document.getElementById('processingOverlay');
+        const processingText = document.getElementById('processingText');
+        const progressFill = document.getElementById('progressFill');
         const formularioFallecido = document.getElementById('formularioFallecido');
 
         // Establecer fecha y hora actual
@@ -201,14 +212,22 @@
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        height: { ideal: 720 },
+                        facingMode: 'environment'
                     } 
                 });
                 cameraVideo.srcObject = stream;
                 cameraModal.classList.add('active');
                 
-                // Aquí se iniciará la detección automática del DNI
-                iniciarDeteccion();
+                // Esperar a que el video esté listo
+                cameraVideo.onloadedmetadata = () => {
+                    // Configurar canvas de detección
+                    detectionCanvas.width = cameraVideo.videoWidth;
+                    detectionCanvas.height = cameraVideo.videoHeight;
+                    
+                    // Iniciar detección
+                    iniciarDeteccion();
+                };
             } catch (error) {
                 alert('Error al acceder a la cámara: ' + error.message);
             }
@@ -224,29 +243,95 @@
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
             cameraModal.classList.remove('active');
             cameraFrame.classList.remove('detected');
+            isDetecting = false;
+            detectionStableFrames = 0;
         }
 
-        // Simulación de detección (aquí se integrará el OCR)
+        // Detectar DNI en el video
         function iniciarDeteccion() {
-            // Por ahora solo simula la detección
-            // En el siguiente paso integraremos Tesseract.js
+            isDetecting = true;
             cameraStatus.textContent = '⬤ BUSCANDO DOCUMENTO';
             
-            // Simular detección después de 3 segundos (TEMPORAL)
-            setTimeout(() => {
-                detectarDNI();
-            }, 3000);
+            // Analizar frames cada 200ms
+            detectionInterval = setInterval(() => {
+                detectarDocumento();
+            }, 200);
         }
 
-        // Función que se ejecutará cuando se detecte el DNI
-        function detectarDNI() {
+        function detectarDocumento() {
+            if (!isDetecting) return;
+
+            const ctx = detectionCanvas.getContext('2d');
+            ctx.drawImage(cameraVideo, 0, 0, detectionCanvas.width, detectionCanvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
+            const detected = analizarImagen(imageData);
+            
+            if (detected) {
+                detectionStableFrames++;
+                
+                if (detectionStableFrames >= FRAMES_TO_CONFIRM) {
+                    // DNI detectado de forma estable
+                    documentoDetectado();
+                } else {
+                    cameraStatus.textContent = `⬤ ESTABILIZANDO... ${detectionStableFrames}/${FRAMES_TO_CONFIRM}`;
+                }
+            } else {
+                detectionStableFrames = 0;
+                cameraFrame.classList.remove('detected');
+                cameraStatus.classList.remove('detected');
+                cameraStatus.textContent = '⬤ BUSCANDO DOCUMENTO';
+            }
+        }
+
+        function analizarImagen(imageData) {
+            // Análisis básico de detección de bordes y formas rectangulares
+            const data = imageData.data;
+            let edgeCount = 0;
+            const threshold = 50;
+            
+            // Análisis simple: detectar cambios abruptos de color (bordes)
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // Siguiente pixel
+                const nextR = data[i + 4] || 0;
+                const nextG = data[i + 5] || 0;
+                const nextB = data[i + 6] || 0;
+                
+                const diff = Math.abs(r - nextR) + Math.abs(g - nextG) + Math.abs(b - nextB);
+                
+                if (diff > threshold) {
+                    edgeCount++;
+                }
+            }
+            
+            // Si hay suficientes bordes, probablemente hay un documento
+            const edgeRatio = edgeCount / (data.length / 4);
+            
+            // Ajusta este umbral según pruebas
+            return edgeRatio > 0.15 && edgeRatio < 0.35;
+        }
+
+        function documentoDetectado() {
+            if (!isDetecting) return;
+            
+            isDetecting = false;
+            clearInterval(detectionInterval);
+            
             cameraFrame.classList.add('detected');
             cameraStatus.textContent = '⬤ DOCUMENTO DETECTADO';
             cameraStatus.classList.add('detected');
             
-            // Capturar imagen y procesar
+            // Capturar y procesar después de 1 segundo
             setTimeout(() => {
                 capturarYProcesar();
             }, 1000);
@@ -254,54 +339,177 @@
 
         // Capturar imagen y procesar con OCR
         async function capturarYProcesar() {
-            const canvas = document.getElementById('cameraCanvas');
-            const context = canvas.getContext('2d');
-            
-            canvas.width = cameraVideo.videoWidth;
-            canvas.height = cameraVideo.videoHeight;
-            context.drawImage(cameraVideo, 0, 0);
+            // Capturar frame actual
+            const ctx = captureCanvas.getContext('2d');
+            captureCanvas.width = cameraVideo.videoWidth;
+            captureCanvas.height = cameraVideo.videoHeight;
+            ctx.drawImage(cameraVideo, 0, 0);
             
             // Cerrar cámara
             cerrarCamara();
             
             // Mostrar overlay de procesamiento
             processingOverlay.classList.add('active');
+            processingText.textContent = 'Inicializando OCR...';
+            progressFill.style.width = '10%';
             
-            // Aquí se procesará con OCR (siguiente paso)
-            // Por ahora simularemos datos extraídos
-            setTimeout(() => {
-                llenarFormularioConDatos({
-                    primerApellido: 'GARCÍA',
-                    segundoApellido: 'LÓPEZ',
-                    prenombres: 'JUAN CARLOS',
-                    fechaNacimiento: '1990-05-15',
-                    tipoDocumento: 'DNI',
-                    numeroDocumento: '12345678',
-                    sexo: 'MASCULINO',
-                    estadoCivil: 'SOLTERO',
-                    gradoInstruccion: 'SECUNDARIA_COMPLETA'
+            // Convertir canvas a imagen
+            const imageData = captureCanvas.toDataURL('image/png');
+            
+            // Procesar con Tesseract
+            await procesarConOCR(imageData);
+        }
+
+        // Procesar imagen con Tesseract.js
+        async function procesarConOCR(imageData) {
+            try {
+                processingText.textContent = 'Extrayendo texto...';
+                progressFill.style.width = '30%';
+                
+                const worker = await Tesseract.createWorker('spa', 1, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const progress = Math.round(m.progress * 100);
+                            progressFill.style.width = (30 + progress * 0.6) + '%';
+                        }
+                    }
                 });
-            }, 2000);
+                
+                const { data: { text } } = await worker.recognize(imageData);
+                
+                console.log('Texto extraído:', text);
+                
+                processingText.textContent = 'Analizando datos...';
+                progressFill.style.width = '95%';
+                
+                // Parsear datos del texto extraído
+                const datosExtraidos = parsearDatosDNI(text);
+                
+                progressFill.style.width = '100%';
+                
+                await worker.terminate();
+                
+                // Pequeña pausa para mostrar progreso completo
+                setTimeout(() => {
+                    llenarFormularioConDatos(datosExtraidos);
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error en OCR:', error);
+                processingOverlay.classList.remove('active');
+                alert('Error al procesar el documento. Por favor, inténtelo nuevamente.');
+            }
+        }
+
+        // Parsear datos del DNI desde el texto extraído
+        function parsearDatosDNI(texto) {
+            console.log('Parseando texto:', texto);
+            
+            const datos = {
+                primerApellido: '',
+                segundoApellido: '',
+                prenombres: '',
+                fechaNacimiento: '',
+                tipoDocumento: 'DNI',
+                numeroDocumento: '',
+                sexo: '',
+                estadoCivil: '',
+                gradoInstruccion: ''
+            };
+            
+            // Limpiar texto
+            const textoLimpio = texto.toUpperCase().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+            
+            // Buscar número de DNI (8 dígitos)
+            const dniMatch = textoLimpio.match(/\b(\d{8})\b/);
+            if (dniMatch) {
+                datos.numeroDocumento = dniMatch[1];
+            }
+            
+            // Buscar apellidos y nombres (después de "APELLIDOS" o "NOMBRES")
+            const apellidosMatch = textoLimpio.match(/APELLIDOS?\s*:?\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:NOMBRES|PRENOMBRES|FECHA)/i);
+            if (apellidosMatch) {
+                const apellidos = apellidosMatch[1].trim().split(/\s+/);
+                datos.primerApellido = apellidos[0] || '';
+                datos.segundoApellido = apellidos[1] || '';
+            }
+            
+            const nombresMatch = textoLimpio.match(/(?:NOMBRES|PRENOMBRES)\s*:?\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:FECHA|NACIMIENTO|SEXO|\d)/i);
+            if (nombresMatch) {
+                datos.prenombres = nombresMatch[1].trim();
+            }
+            
+            // Buscar fecha de nacimiento (formato DD/MM/YYYY o DD-MM-YYYY)
+            const fechaMatch = textoLimpio.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+            if (fechaMatch) {
+                const dia = fechaMatch[1].padStart(2, '0');
+                const mes = fechaMatch[2].padStart(2, '0');
+                const anio = fechaMatch[3];
+                datos.fechaNacimiento = `${anio}-${mes}-${dia}`;
+            }
+            
+            // Buscar sexo
+            if (textoLimpio.includes('MASCULINO') || textoLimpio.includes('M') || textoLimpio.includes('HOMBRE')) {
+                datos.sexo = 'MASCULINO';
+            } else if (textoLimpio.includes('FEMENINO') || textoLimpio.includes('F') || textoLimpio.includes('MUJER')) {
+                datos.sexo = 'FEMENINO';
+            }
+            
+            // Buscar estado civil
+            if (textoLimpio.includes('SOLTERO')) {
+                datos.estadoCivil = 'SOLTERO';
+            } else if (textoLimpio.includes('CASADO')) {
+                datos.estadoCivil = 'CASADO';
+            } else if (textoLimpio.includes('VIUDO')) {
+                datos.estadoCivil = 'VIUDO';
+            } else if (textoLimpio.includes('DIVORCIADO')) {
+                datos.estadoCivil = 'DIVORCIADO';
+            } else if (textoLimpio.includes('CONVIVIENTE')) {
+                datos.estadoCivil = 'CONVIVIENTE';
+            }
+            
+            // Buscar grado de instrucción
+            if (textoLimpio.includes('SIN INSTRUCCION') || textoLimpio.includes('SIN ESTUDIOS')) {
+                datos.gradoInstruccion = 'SIN_INSTRUCCION';
+            } else if (textoLimpio.includes('PRIMARIA COMPLETA') || textoLimpio.includes('PRIM. COMPLETA')) {
+                datos.gradoInstruccion = 'PRIMARIA_COMPLETA';
+            } else if (textoLimpio.includes('PRIMARIA') || textoLimpio.includes('PRIM.')) {
+                datos.gradoInstruccion = 'PRIMARIA_INCOMPLETA';
+            } else if (textoLimpio.includes('SECUNDARIA COMPLETA') || textoLimpio.includes('SEC. COMPLETA')) {
+                datos.gradoInstruccion = 'SECUNDARIA_COMPLETA';
+            } else if (textoLimpio.includes('SECUNDARIA') || textoLimpio.includes('SEC.')) {
+                datos.gradoInstruccion = 'SECUNDARIA_INCOMPLETA';
+            } else if (textoLimpio.includes('SUPERIOR') || textoLimpio.includes('UNIVERSITARIA')) {
+                datos.gradoInstruccion = 'SUPERIOR_UNIVERSITARIA';
+            } else if (textoLimpio.includes('TECNICA') || textoLimpio.includes('TÉCNICA')) {
+                datos.gradoInstruccion = 'SUPERIOR_TECNICA';
+            } else if (textoLimpio.includes('POSTGRADO') || textoLimpio.includes('MAESTRIA') || textoLimpio.includes('DOCTORADO')) {
+                datos.gradoInstruccion = 'POSTGRADO';
+            }
+            
+            return datos;
         }
 
         // Llenar formulario con datos extraídos
         function llenarFormularioConDatos(datos) {
-            document.getElementById('primerApellido').value = datos.primerApellido;
-            document.getElementById('segundoApellido').value = datos.segundoApellido;
-            document.getElementById('prenombres').value = datos.prenombres;
-            document.getElementById('fechaNacimiento').value = datos.fechaNacimiento;
-            document.getElementById('tipoDocumento').value = datos.tipoDocumento;
-            document.getElementById('numeroDocumento').value = datos.numeroDocumento;
-            document.getElementById('sexo').value = datos.sexo;
-            document.getElementById('estadoCivil').value = datos.estadoCivil;
-            document.getElementById('gradoInstruccion').value = datos.gradoInstruccion;
-            
-            // Calcular edad
-            document.getElementById('fechaNacimiento').dispatchEvent(new Event('change'));
+            // Rellenar campos
+            if (datos.primerApellido) document.getElementById('primerApellido').value = datos.primerApellido;
+            if (datos.segundoApellido) document.getElementById('segundoApellido').value = datos.segundoApellido;
+            if (datos.prenombres) document.getElementById('prenombres').value = datos.prenombres;
+            if (datos.fechaNacimiento) {
+                document.getElementById('fechaNacimiento').value = datos.fechaNacimiento;
+                // Calcular edad
+                document.getElementById('fechaNacimiento').dispatchEvent(new Event('change'));
+            }
+            if (datos.tipoDocumento) document.getElementById('tipoDocumento').value = datos.tipoDocumento;
+            if (datos.numeroDocumento) document.getElementById('numeroDocumento').value = datos.numeroDocumento;
+            if (datos.sexo) document.getElementById('sexo').value = datos.sexo;
+            if (datos.estadoCivil) document.getElementById('estadoCivil').value = datos.estadoCivil;
+            if (datos.gradoInstruccion) document.getElementById('gradoInstruccion').value = datos.gradoInstruccion;
             
             // Marcar campos como auto-completados
             document.querySelectorAll('.form-group input:not([disabled]), .form-group select').forEach(field => {
-                if (field.value) {
+                if (field.value && field.id !== 'tipoDocumento') {
                     field.classList.add('auto-filled');
                 }
             });
@@ -311,12 +519,15 @@
             
             // Ocultar procesamiento
             processingOverlay.classList.remove('active');
+            progressFill.style.width = '0%';
             
             // Mostrar formulario
             formSection.classList.add('active');
             
             // Scroll al formulario
-            formSection.scrollIntoView({ behavior: 'smooth' });
+            setTimeout(() => {
+                formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
 
         // Habilitar/deshabilitar campos
@@ -325,25 +536,26 @@
                 field.disabled = true;
             });
             btnEdit.disabled = false;
-            isEditing = false;
         }
 
         function habilitarCampos() {
             document.querySelectorAll('.form-group input:not(#edad):not(#fechaHoraIngreso), .form-group select').forEach(field => {
                 field.disabled = false;
             });
-            isEditing = true;
         }
 
         // Botón editar
+        let editMode = false;
         btnEdit.addEventListener('click', () => {
-            habilitarCampos();
-            btnEdit.textContent = '✓ TERMINAR EDICIÓN';
-            btnEdit.addEventListener('click', function temp() {
+            if (!editMode) {
+                habilitarCampos();
+                btnEdit.textContent = '✓ TERMINAR EDICIÓN';
+                editMode = true;
+            } else {
                 deshabilitarCampos();
                 btnEdit.textContent = '✎ EDITAR';
-                btnEdit.removeEventListener('click', temp);
-            });
+                editMode = false;
+            }
         });
 
         // Envío del formulario
@@ -365,9 +577,14 @@
             };
             
             console.log('Datos guardados:', formData);
-            alert('✓ REGISTRO GUARDADO EXITOSAMENTE');
+            alert('✓ REGISTRO GUARDADO EXITOSAMENTE\n\nPuedes ver los datos en la consola del navegador (F12)');
             
             // Aquí enviarías los datos al servidor
+            // fetch('/api/guardar-registro', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(formData)
+            // });
         });
 
         // Inicializar
@@ -376,4 +593,5 @@
         });
     </script>
 </body>
+
 </html>
