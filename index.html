@@ -36,7 +36,7 @@
                 <button class="btn-close-camera" id="btnCloseCamera">✕ CERRAR</button>
                 <div class="camera-frame" id="cameraFrame">
                     <video id="cameraVideo" autoplay playsinline></video>
-                    <canvas id="detectionCanvas" style="display: none;"></canvas>
+                    <canvas id="detectionCanvas"></canvas>
                     <canvas id="captureCanvas" style="display: none;"></canvas>
                     <div class="camera-guide"></div>
                     <div class="camera-status" id="cameraStatus">
@@ -160,8 +160,7 @@
         let detectionInterval = null;
         let isDetecting = false;
         let detectionStableFrames = 0;
-        const FRAMES_TO_CONFIRM = 3; // Frames consecutivos para confirmar detección
-        let tesseractWorker = null;
+        const FRAMES_TO_CONFIRM = 10; // Frames consecutivos para confirmar detección
 
         // Elementos del DOM
         const btnActivateCamera = document.getElementById('btnActivateCamera');
@@ -248,11 +247,6 @@
                 clearInterval(detectionInterval);
                 detectionInterval = null;
             }
-            // Limpiar worker de Tesseract
-            if (tesseractWorker) {
-                tesseractWorker.terminate();
-                tesseractWorker = null;
-            }
             cameraModal.classList.remove('active');
             cameraFrame.classList.remove('detected');
             isDetecting = false;
@@ -267,42 +261,28 @@
             // Analizar frames cada 200ms
             detectionInterval = setInterval(() => {
                 detectarDocumento();
-            }, 1500);
+            }, 200);
         }
 
-        let intentoDeteccion = 0; // Agregar contador
-
-        async function detectarDocumento() {
+        function detectarDocumento() {
             if (!isDetecting) return;
-            
-            intentoDeteccion++;
-            console.log(`\n🎯 Intento de detección #${intentoDeteccion}`);
 
             const ctx = detectionCanvas.getContext('2d');
             ctx.drawImage(cameraVideo, 0, 0, detectionCanvas.width, detectionCanvas.height);
             
-            // Convertir canvas a imagen
-            const imageData = detectionCanvas.toDataURL('image/png');
+            const imageData = ctx.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
+            const detected = analizarImagen(imageData);
             
-            // Enviar a Tesseract para verificar si hay texto
-            const tieneTextoRelevante = await verificarTextoConTesseract(imageData);
-            
-            if (tieneTextoRelevante) {
+            if (detected) {
                 detectionStableFrames++;
-                console.log(`🟢 Frame estable: ${detectionStableFrames}/${FRAMES_TO_CONFIRM}`);
                 
                 if (detectionStableFrames >= FRAMES_TO_CONFIRM) {
-                    console.log('🎉 DOCUMENTO CONFIRMADO - Procesando...');
+                    // DNI detectado de forma estable
                     documentoDetectado();
                 } else {
-                    cameraStatus.textContent = `⬤ DOCUMENTO DETECTADO... ${detectionStableFrames}/${FRAMES_TO_CONFIRM}`;
-                    cameraFrame.classList.add('detected');
-                    cameraStatus.classList.add('detected');
+                    cameraStatus.textContent = `⬤ ESTABILIZANDO... ${detectionStableFrames}/${FRAMES_TO_CONFIRM}`;
                 }
             } else {
-                if (detectionStableFrames > 0) {
-                    console.log('🔴 Se perdió la detección, reiniciando contador');
-                }
                 detectionStableFrames = 0;
                 cameraFrame.classList.remove('detected');
                 cameraStatus.classList.remove('detected');
@@ -310,47 +290,35 @@
             }
         }
 
-
-        async function verificarTextoConTesseract(imageData) {
-            try {
-                // Inicializar worker solo una vez
-                if (!tesseractWorker) {
-                    console.log('🔧 Inicializando Tesseract worker...');
-                    tesseractWorker = await Tesseract.createWorker('spa', 1);
-                    console.log('✅ Tesseract worker inicializado');
+        function analizarImagen(imageData) {
+            // Análisis básico de detección de bordes y formas rectangulares
+            const data = imageData.data;
+            let edgeCount = 0;
+            const threshold = 50;
+            
+            // Análisis simple: detectar cambios abruptos de color (bordes)
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // Siguiente pixel
+                const nextR = data[i + 4] || 0;
+                const nextG = data[i + 5] || 0;
+                const nextB = data[i + 6] || 0;
+                
+                const diff = Math.abs(r - nextR) + Math.abs(g - nextG) + Math.abs(b - nextB);
+                
+                if (diff > threshold) {
+                    edgeCount++;
                 }
-                
-                console.log('📸 Analizando frame...');
-                
-                // Reconocer texto SIN parámetros problemáticos
-                const { data: { text } } = await tesseractWorker.recognize(imageData);
-                
-                console.log('📄 Texto detectado:', text.substring(0, 200));
-                
-                // Verificar si el texto contiene elementos típicos de un DNI
-                const textoLimpio = text.toUpperCase();
-                
-                // Buscar patrones de DNI
-                const tieneDNI = /\d{8}/.test(textoLimpio);
-                const tieneApellidos = /APELLIDO|NOMBRE|DNI|DOCUMENTO/.test(textoLimpio);
-                const tieneFecha = /\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(textoLimpio);
-                
-                console.log('🔍 Patrones encontrados:');
-                console.log('   - DNI (8 dígitos):', tieneDNI);
-                console.log('   - Palabras clave:', tieneApellidos);
-                console.log('   - Fecha:', tieneFecha);
-                
-                // Si encuentra al menos 2 de estos elementos, es probable que sea un DNI
-                const coincidencias = [tieneDNI, tieneApellidos, tieneFecha].filter(Boolean).length;
-                
-                console.log('✅ Coincidencias:', coincidencias, '/3', coincidencias >= 2 ? '(VÁLIDO)' : '(NO VÁLIDO)');
-                
-                return coincidencias >= 2;
-                
-            } catch (error) {
-                console.error('❌ Error en verificación OCR:', error);
-                return false;
             }
+            
+            // Si hay suficientes bordes, probablemente hay un documento
+            const edgeRatio = edgeCount / (data.length / 4);
+            
+            // Ajusta este umbral según pruebas
+            return edgeRatio > 0.02 && edgeRatio < 0.35;
         }
 
         function documentoDetectado() {
