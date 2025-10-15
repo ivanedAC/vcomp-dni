@@ -306,31 +306,40 @@
             try {
                 // Inicializar worker solo una vez
                 if (!tesseractWorker) {
+                    console.log('🔧 Inicializando Tesseract worker...');
                     tesseractWorker = await Tesseract.createWorker('spa', 1);
+                    console.log('✅ Tesseract worker inicializado');
                 }
                 
-                // Reconocer texto con baja calidad (más rápido)
-                const { data: { text } } = await tesseractWorker.recognize(imageData, {
-                    tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT
-                });
+                console.log('📸 Analizando frame...');
                 
-                console.log('Texto detectado:', text.substring(0, 100)); // Ver primeros 100 caracteres
+                // Reconocer texto SIN parámetros problemáticos
+                const { data: { text } } = await tesseractWorker.recognize(imageData);
+                
+                console.log('📄 Texto detectado:', text.substring(0, 200));
                 
                 // Verificar si el texto contiene elementos típicos de un DNI
                 const textoLimpio = text.toUpperCase();
                 
                 // Buscar patrones de DNI
-                const tieneDNI = /\d{8}/.test(textoLimpio); // 8 dígitos seguidos
+                const tieneDNI = /\d{8}/.test(textoLimpio);
                 const tieneApellidos = /APELLIDO|NOMBRE|DNI|DOCUMENTO/.test(textoLimpio);
                 const tieneFecha = /\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(textoLimpio);
+                
+                console.log('🔍 Patrones encontrados:');
+                console.log('   - DNI (8 dígitos):', tieneDNI);
+                console.log('   - Palabras clave:', tieneApellidos);
+                console.log('   - Fecha:', tieneFecha);
                 
                 // Si encuentra al menos 2 de estos elementos, es probable que sea un DNI
                 const coincidencias = [tieneDNI, tieneApellidos, tieneFecha].filter(Boolean).length;
                 
+                console.log('✅ Coincidencias:', coincidencias, '/3', coincidencias >= 2 ? '(VÁLIDO)' : '(NO VÁLIDO)');
+                
                 return coincidencias >= 2;
                 
             } catch (error) {
-                console.error('Error en verificación OCR:', error);
+                console.error('❌ Error en verificación OCR:', error);
                 return false;
             }
         }
