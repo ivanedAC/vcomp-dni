@@ -270,10 +270,13 @@
             }, 1500);
         }
 
-        
+        let intentoDeteccion = 0; // Agregar contador
 
         async function detectarDocumento() {
             if (!isDetecting) return;
+            
+            intentoDeteccion++;
+            console.log(`\n🎯 Intento de detección #${intentoDeteccion}`);
 
             const ctx = detectionCanvas.getContext('2d');
             ctx.drawImage(cameraVideo, 0, 0, detectionCanvas.width, detectionCanvas.height);
@@ -286,8 +289,10 @@
             
             if (tieneTextoRelevante) {
                 detectionStableFrames++;
+                console.log(`🟢 Frame estable: ${detectionStableFrames}/${FRAMES_TO_CONFIRM}`);
                 
                 if (detectionStableFrames >= FRAMES_TO_CONFIRM) {
+                    console.log('🎉 DOCUMENTO CONFIRMADO - Procesando...');
                     documentoDetectado();
                 } else {
                     cameraStatus.textContent = `⬤ DOCUMENTO DETECTADO... ${detectionStableFrames}/${FRAMES_TO_CONFIRM}`;
@@ -295,12 +300,16 @@
                     cameraStatus.classList.add('detected');
                 }
             } else {
+                if (detectionStableFrames > 0) {
+                    console.log('🔴 Se perdió la detección, reiniciando contador');
+                }
                 detectionStableFrames = 0;
                 cameraFrame.classList.remove('detected');
                 cameraStatus.classList.remove('detected');
                 cameraStatus.textContent = '⬤ BUSCANDO DOCUMENTO';
             }
         }
+
 
         async function verificarTextoConTesseract(imageData) {
             try {
