@@ -3,42 +3,732 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Aplicación Web</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/camera.css">
-    <link rel="stylesheet" href="css/formulario.css">
+    <title>Sistema de Registro - Morgue</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            border-bottom: 2px solid #333;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 42px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            color: #fff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            color: #666;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .skull-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.7;
+        }
+
+        /* Botón principal activar cámara */
+        .camera-section {
+            text-align: center;
+            padding: 60px 20px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-activate-camera {
+            background: #fff;
+            color: #000;
+            border: 3px solid #fff;
+            padding: 20px 60px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-activate-camera:hover {
+            background: #000;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .camera-instruction {
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+            max-width: 500px;
+            line-height: 1.8;
+        }
+
+        /* Modal de cámara */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .camera-modal.active {
+            display: flex;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+        }
+
+        .camera-frame {
+            position: relative;
+            width: 100%;
+            border: 5px solid #ff0000;
+            transition: border-color 0.3s ease;
+            background: #000;
+        }
+
+        .camera-frame.detected {
+            border-color: #00ff00;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+        }
+
+        .camera-frame video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .camera-status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 30px;
+            border: 2px solid #ff0000;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .camera-status.detected {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .camera-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+        }
+
+        .btn-close-camera {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: transparent;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 8px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-close-camera:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        /* Sección del formulario */
+        .form-section {
+            display: none;
+            padding: 40px 0;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .form-header h2 {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .form-group input,
+        .form-group select {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 15px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #fff;
+            background: #000;
+        }
+
+        .form-group input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-group input.auto-filled {
+            border-color: #00ff00;
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        /* Botones del formulario */
+        .form-actions {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid #333;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            border: 2px solid;
+        }
+
+        .btn-edit {
+            background: transparent;
+            color: #fff;
+            border-color: #fff;
+        }
+
+        .btn-edit:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .btn-edit:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-save {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        .btn-save:hover {
+            background: #000;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-save:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Loading spinner */
+        .processing-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .processing-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .processing-text {
+            margin-top: 20px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <img src="assets/images/logo.png" alt="Logo de la Aplicación">
-        <h1>Bienvenido a Mi Aplicación Web</h1>
-    </header>
-    <main>
-        <section id="camera-section">
-            <h2>Módulo de Cámara</h2>
-            <div id="camera-container"></div>
-            <button id="capture-button">Capturar Imagen</button>
-        </section>
-        <section id="form-section">
-            <h2>Formulario</h2>
-            <form id="user-form">
-                <label for="name">Nombre:</label>
-                <input type="text" id="name" name="name" required>
-                <label for="dni">DNI:</label>
-                <input type="text" id="dni" name="dni" required>
-                <button type="submit">Enviar</button>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="skull-icon">☠</div>
+            <h1>MORGUE</h1>
+            <p class="subtitle">Sistema de Registro</p>
+        </div>
+
+        <!-- Sección de activar cámara -->
+        <div class="camera-section" id="cameraSection">
+            <button class="btn-activate-camera" id="btnActivateCamera">
+                ⚫ ACTIVAR CÁMARA
+            </button>
+            <p class="camera-instruction">
+                Coloque el documento de identidad frente a la cámara.<br>
+                El sistema detectará automáticamente el DNI y extraerá los datos.
+            </p>
+        </div>
+
+        <!-- Modal de cámara -->
+        <div class="camera-modal" id="cameraModal">
+            <div class="camera-container">
+                <button class="btn-close-camera" id="btnCloseCamera">✕ CERRAR</button>
+                <div class="camera-frame" id="cameraFrame">
+                    <video id="cameraVideo" autoplay playsinline></video>
+                    <canvas id="cameraCanvas" style="display: none;"></canvas>
+                    <div class="camera-guide"></div>
+                    <div class="camera-status" id="cameraStatus">
+                        ⬤ BUSCANDO DOCUMENTO
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overlay de procesamiento -->
+        <div class="processing-overlay" id="processingOverlay">
+            <div class="spinner"></div>
+            <p class="processing-text">Extrayendo datos...</p>
+        </div>
+
+        <!-- Sección del formulario -->
+        <div class="form-section" id="formSection">
+            <div class="form-header">
+                <h2>☠ DATOS DEL FALLECIDO</h2>
+            </div>
+
+            <form id="formularioFallecido">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Primer Apellido</label>
+                        <input type="text" id="primerApellido" name="primerApellido" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Segundo Apellido</label>
+                        <input type="text" id="segundoApellido" name="segundoApellido" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Prenombres</label>
+                        <input type="text" id="prenombres" name="prenombres" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Fecha de Nacimiento</label>
+                        <input type="date" id="fechaNacimiento" name="fechaNacimiento" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Edad (Calculada)</label>
+                        <input type="text" id="edad" name="edad" disabled>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tipo de Documento</label>
+                        <select id="tipoDocumento" name="tipoDocumento" required>
+                            <option value="">Seleccione...</option>
+                            <option value="DNI">D.N.I.</option>
+                            <option value="CARNET_EXTRANJERIA">Carnet de Extranjería</option>
+                            <option value="PASAPORTE">Pasaporte</option>
+                            <option value="OTRO">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Número de Documento</label>
+                        <input type="text" id="numeroDocumento" name="numeroDocumento" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Sexo</label>
+                        <select id="sexo" name="sexo" required>
+                            <option value="">Seleccione...</option>
+                            <option value="MASCULINO">Masculino</option>
+                            <option value="FEMENINO">Femenino</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Estado Civil</label>
+                        <select id="estadoCivil" name="estadoCivil" required>
+                            <option value="">Seleccione...</option>
+                            <option value="SOLTERO">Soltero(a)</option>
+                            <option value="CASADO">Casado(a)</option>
+                            <option value="VIUDO">Viudo(a)</option>
+                            <option value="DIVORCIADO">Divorciado(a)</option>
+                            <option value="CONVIVIENTE">Conviviente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Grado de Instrucción</label>
+                        <select id="gradoInstruccion" name="gradoInstruccion" required>
+                            <option value="">Seleccione...</option>
+                            <option value="SIN_INSTRUCCION">Sin Instrucción</option>
+                            <option value="PRIMARIA_INCOMPLETA">Primaria Incompleta</option>
+                            <option value="PRIMARIA_COMPLETA">Primaria Completa</option>
+                            <option value="SECUNDARIA_INCOMPLETA">Secundaria Incompleta</option>
+                            <option value="SECUNDARIA_COMPLETA">Secundaria Completa</option>
+                            <option value="SUPERIOR_TECNICA">Superior Técnica</option>
+                            <option value="SUPERIOR_UNIVERSITARIA">Superior Universitaria</option>
+                            <option value="POSTGRADO">Postgrado</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Fecha y Hora de Ingreso</label>
+                        <input type="datetime-local" id="fechaHoraIngreso" name="fechaHoraIngreso" disabled>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-edit" id="btnEdit">✎ EDITAR</button>
+                    <button type="submit" class="btn btn-save" id="btnSave">✓ GUARDAR</button>
+                </div>
             </form>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2023 Mi Aplicación Web. Todos los derechos reservados.</p>
-    </footer>
-    <script src="libs/tesseract.min.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/camera.js"></script>
-    <script src="js/ocr.js"></script>
-    <script src="js/formulario.js"></script>
-    <script src="js/validator.js"></script>
-    <script src="js/utils.js"></script>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let stream = null;
+        let isEditing = false;
+
+        // Elementos del DOM
+        const btnActivateCamera = document.getElementById('btnActivateCamera');
+        const btnCloseCamera = document.getElementById('btnCloseCamera');
+        const btnEdit = document.getElementById('btnEdit');
+        const btnSave = document.getElementById('btnSave');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraSection = document.getElementById('cameraSection');
+        const formSection = document.getElementById('formSection');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraFrame = document.getElementById('cameraFrame');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const processingOverlay = document.getElementById('processingOverlay');
+        const formularioFallecido = document.getElementById('formularioFallecido');
+
+        // Establecer fecha y hora actual
+        function setFechaHoraActual() {
+            const ahora = new Date();
+            const year = ahora.getFullYear();
+            const month = String(ahora.getMonth() + 1).padStart(2, '0');
+            const day = String(ahora.getDate()).padStart(2, '0');
+            const hours = String(ahora.getHours()).padStart(2, '0');
+            const minutes = String(ahora.getMinutes()).padStart(2, '0');
+            
+            document.getElementById('fechaHoraIngreso').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        // Calcular edad
+        document.getElementById('fechaNacimiento').addEventListener('change', function() {
+            const fechaNacimiento = new Date(this.value);
+            const hoy = new Date();
+            
+            let edad = hoy.getFullYear() - fechaNacimiento.getFullYear();
+            const mes = hoy.getMonth() - fechaNacimiento.getMonth();
+            
+            if (mes < 0 || (mes === 0 && hoy.getDate() < fechaNacimiento.getDate())) {
+                edad--;
+            }
+            
+            document.getElementById('edad').value = edad + ' AÑOS';
+        });
+
+        // Activar cámara
+        btnActivateCamera.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                cameraVideo.srcObject = stream;
+                cameraModal.classList.add('active');
+                
+                // Aquí se iniciará la detección automática del DNI
+                iniciarDeteccion();
+            } catch (error) {
+                alert('Error al acceder a la cámara: ' + error.message);
+            }
+        });
+
+        // Cerrar cámara
+        btnCloseCamera.addEventListener('click', () => {
+            cerrarCamara();
+        });
+
+        function cerrarCamara() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            cameraModal.classList.remove('active');
+            cameraFrame.classList.remove('detected');
+        }
+
+        // Simulación de detección (aquí se integrará el OCR)
+        function iniciarDeteccion() {
+            // Por ahora solo simula la detección
+            // En el siguiente paso integraremos Tesseract.js
+            cameraStatus.textContent = '⬤ BUSCANDO DOCUMENTO';
+            
+            // Simular detección después de 3 segundos (TEMPORAL)
+            setTimeout(() => {
+                detectarDNI();
+            }, 3000);
+        }
+
+        // Función que se ejecutará cuando se detecte el DNI
+        function detectarDNI() {
+            cameraFrame.classList.add('detected');
+            cameraStatus.textContent = '⬤ DOCUMENTO DETECTADO';
+            cameraStatus.classList.add('detected');
+            
+            // Capturar imagen y procesar
+            setTimeout(() => {
+                capturarYProcesar();
+            }, 1000);
+        }
+
+        // Capturar imagen y procesar con OCR
+        async function capturarYProcesar() {
+            const canvas = document.getElementById('cameraCanvas');
+            const context = canvas.getContext('2d');
+            
+            canvas.width = cameraVideo.videoWidth;
+            canvas.height = cameraVideo.videoHeight;
+            context.drawImage(cameraVideo, 0, 0);
+            
+            // Cerrar cámara
+            cerrarCamara();
+            
+            // Mostrar overlay de procesamiento
+            processingOverlay.classList.add('active');
+            
+            // Aquí se procesará con OCR (siguiente paso)
+            // Por ahora simularemos datos extraídos
+            setTimeout(() => {
+                llenarFormularioConDatos({
+                    primerApellido: 'GARCÍA',
+                    segundoApellido: 'LÓPEZ',
+                    prenombres: 'JUAN CARLOS',
+                    fechaNacimiento: '1990-05-15',
+                    tipoDocumento: 'DNI',
+                    numeroDocumento: '12345678',
+                    sexo: 'MASCULINO',
+                    estadoCivil: 'SOLTERO',
+                    gradoInstruccion: 'SECUNDARIA_COMPLETA'
+                });
+            }, 2000);
+        }
+
+        // Llenar formulario con datos extraídos
+        function llenarFormularioConDatos(datos) {
+            document.getElementById('primerApellido').value = datos.primerApellido;
+            document.getElementById('segundoApellido').value = datos.segundoApellido;
+            document.getElementById('prenombres').value = datos.prenombres;
+            document.getElementById('fechaNacimiento').value = datos.fechaNacimiento;
+            document.getElementById('tipoDocumento').value = datos.tipoDocumento;
+            document.getElementById('numeroDocumento').value = datos.numeroDocumento;
+            document.getElementById('sexo').value = datos.sexo;
+            document.getElementById('estadoCivil').value = datos.estadoCivil;
+            document.getElementById('gradoInstruccion').value = datos.gradoInstruccion;
+            
+            // Calcular edad
+            document.getElementById('fechaNacimiento').dispatchEvent(new Event('change'));
+            
+            // Marcar campos como auto-completados
+            document.querySelectorAll('.form-group input:not([disabled]), .form-group select').forEach(field => {
+                if (field.value) {
+                    field.classList.add('auto-filled');
+                }
+            });
+            
+            // Deshabilitar campos (modo solo lectura)
+            deshabilitarCampos();
+            
+            // Ocultar procesamiento
+            processingOverlay.classList.remove('active');
+            
+            // Mostrar formulario
+            formSection.classList.add('active');
+            
+            // Scroll al formulario
+            formSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Habilitar/deshabilitar campos
+        function deshabilitarCampos() {
+            document.querySelectorAll('.form-group input:not([disabled]), .form-group select').forEach(field => {
+                field.disabled = true;
+            });
+            btnEdit.disabled = false;
+            isEditing = false;
+        }
+
+        function habilitarCampos() {
+            document.querySelectorAll('.form-group input:not(#edad):not(#fechaHoraIngreso), .form-group select').forEach(field => {
+                field.disabled = false;
+            });
+            isEditing = true;
+        }
+
+        // Botón editar
+        btnEdit.addEventListener('click', () => {
+            habilitarCampos();
+            btnEdit.textContent = '✓ TERMINAR EDICIÓN';
+            btnEdit.addEventListener('click', function temp() {
+                deshabilitarCampos();
+                btnEdit.textContent = '✎ EDITAR';
+                btnEdit.removeEventListener('click', temp);
+            });
+        });
+
+        // Envío del formulario
+        formularioFallecido.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                primerApellido: document.getElementById('primerApellido').value,
+                segundoApellido: document.getElementById('segundoApellido').value,
+                prenombres: document.getElementById('prenombres').value,
+                fechaNacimiento: document.getElementById('fechaNacimiento').value,
+                edad: document.getElementById('edad').value,
+                tipoDocumento: document.getElementById('tipoDocumento').value,
+                numeroDocumento: document.getElementById('numeroDocumento').value,
+                sexo: document.getElementById('sexo').value,
+                estadoCivil: document.getElementById('estadoCivil').value,
+                gradoInstruccion: document.getElementById('gradoInstruccion').value,
+                fechaHoraIngreso: document.getElementById('fechaHoraIngreso').value
+            };
+            
+            console.log('Datos guardados:', formData);
+            alert('✓ REGISTRO GUARDADO EXITOSAMENTE');
+            
+            // Aquí enviarías los datos al servidor
+        });
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            setFechaHoraActual();
+        });
+    </script>
 </body>
 </html>
