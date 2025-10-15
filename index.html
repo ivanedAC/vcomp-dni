@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Aplicación Web</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/camera.css">
+    <link rel="stylesheet" href="css/formulario.css">
+</head>
+<body>
+    <header>
+        <img src="assets/images/logo.png" alt="Logo de la Aplicación">
+        <h1>Bienvenido a Mi Aplicación Web</h1>
+    </header>
+    <main>
+        <section id="camera-section">
+            <h2>Módulo de Cámara</h2>
+            <div id="camera-container"></div>
+            <button id="capture-button">Capturar Imagen</button>
+        </section>
+        <section id="form-section">
+            <h2>Formulario</h2>
+            <form id="user-form">
+                <label for="name">Nombre:</label>
+                <input type="text" id="name" name="name" required>
+                <label for="dni">DNI:</label>
+                <input type="text" id="dni" name="dni" required>
+                <button type="submit">Enviar</button>
+            </form>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2023 Mi Aplicación Web. Todos los derechos reservados.</p>
+    </footer>
+    <script src="libs/tesseract.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/ocr.js"></script>
+    <script src="js/formulario.js"></script>
+    <script src="js/validator.js"></script>
+    <script src="js/utils.js"></script>
+</body>
+</html>
