@@ -204,3 +204,40 @@
     margin-top: 10px;
     text-align: center;
 }
+
+.progress-bar {
+    width: 80%;
+    max-width: 400px;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #fff;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* Animación de parpadeo para estado detectado */
+@keyframes blink-detected {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.camera-status.detected {
+    animation: blink-detected 1s ease-in-out infinite;
+}
+
+/* Canvas ocultos */
+#detectionCanvas,
+#captureCanvas {
+    display: none;
+}

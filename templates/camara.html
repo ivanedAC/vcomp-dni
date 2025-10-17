@@ -1,53 +1,54 @@
 {% extends "index.html" %}
 {% block styles %}
-<link rel="stylesheet" href="/static/css/camera.css"> 
+<link rel="stylesheet" href="/static/css/camera.css">
+<script src="/static/js/camara.js"></script>
 {% endblock styles %}
 {% block container %}
-   <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="skull-icon">☠</div>
-            <h1>MORGUE</h1>
-            <p class="subtitle">Sistema de Registro</p>
-        </div>
-
-        <!-- Sección de activar cámara -->
-        <div class="camera-section" id="cameraSection">
-            <button class="btn-activate-camera" id="btnActivateCamera">
-                ⚫ ACTIVAR CÁMARA
-            </button>
-            <p class="camera-instruction">
-                Coloque el documento de identidad frente a la cámara.<br>
-                Capture la foto del DNI y el sistema extraerá los datos.
-            </p>
-        </div>
-
-        <!-- Modal de cámara -->
-        <div class="camera-modal" id="cameraModal">
-            <div class="camera-container">
-                <button class="btn-close-camera" id="btnCloseCamera">✕ CERRAR</button>
-                <div class="camera-frame" id="cameraFrame">
-                    <video id="cameraVideo" autoplay playsinline></video>
-                    <canvas id="captureCanvas" style="display: none;"></canvas>
-                    <div class="camera-guide"></div>
-                    <div class="camera-status" id="cameraStatus">
-                        ⬤ APUNTE AL DNI Y CAPTURE
-                    </div>
-                    <button class="btn-activate-camera" id="btnCapture" style="margin-top:20px;">📸 CAPTURAR</button>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div class="skull-icon">☠</div>
+        <h1>MORGUE</h1>
+        <p class="subtitle">Sistema de Registro</p>
+    </div>
+    
+    <!-- Sección de activar cámara -->
+    <div class="camera-section" id="cameraSection">
+        <button class="btn-activate-camera" id="btnActivateCamera">
+            ⚫ ACTIVAR CÁMARA
+        </button>
+        <p class="camera-instruction">
+            Coloque el documento de identidad frente a la cámara.<br>
+            El sistema detectará automáticamente el DNI y extraerá los datos.
+        </p>
+    </div>
+    
+    <!-- Modal de cámara -->
+    <div class="camera-modal" id="cameraModal">
+        <div class="camera-container">
+            <button class="btn-close-camera" id="btnCloseCamera">✕ CERRAR</button>
+            <div class="camera-frame" id="cameraFrame">
+                <video id="cameraVideo" autoplay playsinline></video>
+                <canvas id="detectionCanvas" style="display: none;"></canvas>
+                <canvas id="captureCanvas" style="display: none;"></canvas>
+                <div class="camera-guide"></div>
+                <div class="camera-status" id="cameraStatus">
+                    ⬤ BUSCANDO DOCUMENTO
                 </div>
             </div>
         </div>
-
-        <!-- Overlay de procesamiento -->
-        <div class="processing-overlay" id="processingOverlay">
-            <div class="spinner"></div>
-            <p class="processing-text" id="processingText">Procesando imagen...</p>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-        </div>
-
-       
-
     </div>
+    
+    <!-- Overlay de procesamiento -->
+    <div class="processing-overlay" id="processingOverlay">
+        <div class="spinner"></div>
+        <p class="processing-text" id="processingText">Procesando imagen...</p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+</div>
 {% endblock container %}
+{% block scripts %}
+<script src="/static/js/camara.js"></script>
+{% endblock scripts %}
