@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let detectionStableFrames = 0;
     const FRAMES_TO_CONFIRM = 10;
 
-    // Elementos del DOM
+    // Captura las referencias a elementos
     const btnActivateCamera = document.getElementById('btnActivateCamera');
     const btnCloseCamera = document.getElementById('btnCloseCamera');
     const cameraModal = document.getElementById('cameraModal');
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Esperar a que el video esté listo
             cameraVideo.onloadedmetadata = () => {
-                // Configurar canvas de detección
+                 // Configurar canvas de detección
                 detectionCanvas.width = cameraVideo.videoWidth;
                 detectionCanvas.height = cameraVideo.videoHeight;
                 
@@ -47,26 +47,6 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Error al acceder a la cámara: ' + error.message);
         }
     });
-
-    // Cerrar cámara
-    btnCloseCamera.addEventListener('click', () => {
-        cerrarCamara();
-    });
-
-    function cerrarCamara() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
-        if (detectionInterval) {
-            clearInterval(detectionInterval);
-            detectionInterval = null;
-        }
-        cameraModal.classList.remove('active');
-        cameraFrame.classList.remove('detected');
-        isDetecting = false;
-        detectionStableFrames = 0;
-    }
 
     // Detectar DNI en el video
     function iniciarDeteccion() {
@@ -81,13 +61,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function detectarDocumento() {
-        if (!isDetecting) return;
+        if (!isDetecting) return; //Si no se ha iniciado la detección, que no detecte
 
         const ctx = detectionCanvas.getContext('2d');
         ctx.drawImage(cameraVideo, 0, 0, detectionCanvas.width, detectionCanvas.height);
         
         const imageData = ctx.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
+        
+        console.log(imageData)
+
         const detected = analizarImagen(imageData);
+        console.log(detected)
         
         if (detected) {
             detectionStableFrames++;
@@ -112,31 +96,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function analizarImagen(imageData) {
-        const data = imageData.data;
-        let edgeCount = 0;
-        const threshold = 50;
-        
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            
-            const nextR = data[i + 4] || 0;
-            const nextG = data[i + 5] || 0;
-            const nextB = data[i + 6] || 0;
-            
-            const diff = Math.abs(r - nextR) + Math.abs(g - nextG) + Math.abs(b - nextB);
-            
-            if (diff > threshold) {
-                edgeCount++;
-            }
-        }
-        
-        const edgeRatio = edgeCount / (data.length / 4);
-        return edgeRatio > 0.02 && edgeRatio < 0.35;
-    }
-
     function documentoDetectado() {
         if (!isDetecting) return;
         
@@ -153,6 +112,61 @@ document.addEventListener('DOMContentLoaded', function() {
             capturarYEnviar();
         }, 1000);
     }
+
+    function analizarImagen(imageData) {
+    const data = imageData.data;
+    console.log(data)
+    const width = imageData.width;
+    const height = imageData.height;
+    let edgeCount = 0;
+    const threshold = 50;
+    
+    // Iterar por filas y columnas
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Índice del píxel actual
+            const i = (y * width + x) * 4;
+            
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Comparar con el píxel de la derecha (si no es el último)
+            if (x < width - 1) {
+                const nextR = data[i + 4];
+                const nextG = data[i + 5];
+                const nextB = data[i + 6];
+                
+                const diffHorizontal = Math.abs(r - nextR) + 
+                                        Math.abs(g - nextG) + 
+                                        Math.abs(b - nextB);
+                
+                if (diffHorizontal > threshold) {
+                    edgeCount++;
+                }
+            }
+            
+            // Comparar con el píxel de abajo (si no es la última fila)
+            if (y < height - 1) {
+                const belowR = data[i + width * 4];
+                const belowG = data[i + width * 4 + 1];
+                const belowB = data[i + width * 4 + 2];
+                
+                const diffVertical = Math.abs(r - belowR) + 
+                                      Math.abs(g - belowG) + 
+                                      Math.abs(b - belowB);
+                
+                if (diffVertical > threshold) {
+                    edgeCount++;
+                }
+            }
+        }
+    }
+    
+    const edgeRatio = edgeCount / (width * height);
+    return edgeRatio > 0.02 && edgeRatio < 0.35;
+}
+
 
     // Capturar imagen y enviar al backend
     async function capturarYEnviar() {
@@ -172,6 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Convertir canvas a blob
         captureCanvas.toBlob(async (blob) => {
+            console.log(blob)
             await enviarImagenAlBackend(blob);
         }, 'image/jpeg', 0.95);
     }
@@ -249,6 +264,27 @@ document.addEventListener('DOMContentLoaded', function() {
             
             alert('❌ ' + mensajeError + '\n\nPor favor, inténtelo nuevamente.');
         }
+    }
+
+
+        // Cerrar cámara
+    btnCloseCamera.addEventListener('click', () => {
+        cerrarCamara();
+    });
+
+    function cerrarCamara() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        if (detectionInterval) {
+            clearInterval(detectionInterval);
+            detectionInterval = null;
+        }
+        cameraModal.classList.remove('active');
+        cameraFrame.classList.remove('detected');
+        isDetecting = false;
+        detectionStableFrames = 0;
     }
 
 }); // Fin del DOMContentLoaded
